@@ -1,5 +1,5 @@
 /***
-  HANIF FADHLURRAHMAN
+  HANIF FADHLURRAHMAN this for ds18b20
 ***/
 //LIB...............................................................................................................
 #include <Arduino.h>
