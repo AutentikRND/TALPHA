@@ -1,5 +1,5 @@
 /*
-   firmware version 1.0.7
+   firmware version 2.0.0
    developed babynoy
 */
 //ALL LIBRARY
