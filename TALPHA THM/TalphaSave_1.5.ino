@@ -1,7 +1,3 @@
-/*
-   firmware version 2.0.0
-   developed babynoy
-*/
 //ALL LIBRARY
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
