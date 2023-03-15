@@ -430,7 +430,7 @@ void sendTofirebase(float caltempC, float calhumidity, float tempC, float humidi
   getTimeStamp();
   String jsonStr = "";
   http.addHeader("Content-Type", "application/json");
-  int httpResponseCode = http.POST("{\"email\":\"" + email + "\",\"password\":\"" + pass + "\", \"userId\":\"" + userId + "\",\"idDevice\":\"" + idDevice + "\",\"value\":{\"data1\":" + caltempC + ",\"data2\":" + calhumidity + ",\"wifi\":" + qualwifi + "}}");
+  int httpResponseCode = http.POST("{\"userId\":\"" + userId + "\",\"idDevice\":\"" + idDevice + "\",\"value\":{\"data1\":" + caltempC + ",\"data2\":" + calhumidity + ",\"wifi\":" + qualwifi + "}}");
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
 
