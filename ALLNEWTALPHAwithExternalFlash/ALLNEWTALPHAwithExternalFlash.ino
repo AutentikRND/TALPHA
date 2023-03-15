@@ -1,5 +1,5 @@
 /*
-   firmware version 2.0.0
+   firmware version 2.0.3
    developed babynoy
 */
 //ALL LIBRARY
@@ -22,7 +22,8 @@
 HTU21D sensor;
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
-#include <Fonts/Picopixel.h>
+#include <FlickerFreePrint.h>
+#include <Fonts/SevenSegment50pt7b.h>
 //ALL DEFINE
 #define SEALEVELPRESSURE_HPA (1013.25)
 #define TFT_CS D8
@@ -43,18 +44,19 @@ Adafruit_SPIFlash flash(&flashTransport);
 FatFileSystem fatfs;
 //File myFile;
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+FlickerFreePrint<Adafruit_ILI9341> Data1(&tft, ILI9341_WHITE, ILI9341_BLACK);
+FlickerFreePrint<Adafruit_ILI9341> Data2(&tft, ILI9341_WHITE, ILI9341_BLACK);
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 //Adafruit_BME280 bme; // I2C
 DNSServer dns;
 WiFiManager wifiManager;
 //AnalogSmooth as = AnalogSmooth();
+
 //User ID
 String userId = "c8879e6e-db31-44e4-905e-ee87f238076a";
 //ID Device
 String idDevice = "c33fdec6-2bdb-4d21-9a3e-7c37c33cc51a";
-
-
 //Email Account
 String email = "talpha.autentik@gmail.com";
 //Email Password
@@ -92,6 +94,7 @@ int q = 0;
 int interval = 24;
 int persen;
 int val = 0;
+float caltempcclear;
 
 //FLOAT
 float voltageValue, currentValue;
@@ -114,7 +117,7 @@ int w = 1;
 int z = 0;
 int mati = 0;
 float min1, max1, min2, max2, volt;
-int caltempC, calhumidity, tempC, humidity;
+float caltempC, calhumidity, tempC, humidity;
 float fval4, fval5, fval6;
 float Vout = 0.00;
 float Vin = 0.00;
@@ -149,6 +152,7 @@ void setup() {
   Serial.begin(115200);
   Create_Data();
   tft.begin();
+  //tft.setBacklight(128);
   tft.setRotation(0);
   tft.fillScreen(ILI9341_WHITE);
   tft.drawBitmap(5, 110, cloud, 231, 75, ILI9341_BLACK);
@@ -276,15 +280,15 @@ void loop() {
         mati = 0;
         tft.drawBitmap(177, 5, warning, 7, 16, ILI9341_WHITE);
       }
-      getTimeStamp();
       sendTofirebase(caltempC, calhumidity, tempC, humidity, link);
-      delay(10);
+      getTimeStamp();
+      yield();
     }
   }
   if (currentMillis - previousMillis1 >= 2000) {
     previousMillis1 = currentMillis;
     readSensor();
-    testText(caltempC, calhumidity);
+    testText(caltempC, calhumidity, caltempcclear);
   }
   MDNS.update();
   doWiFiManager();
@@ -301,36 +305,36 @@ void readSensor() {
   h = (d * humidity) + (e * (pow(humidity, 2))) + f;
   caltempC = (tempC + te) * offsite1;
   if (caltempC > max1) {
-    tft.drawBitmap(200, 93, up, 17, 17, ILI9341_RED);
-    tft.drawBitmap(200, 120, down, 17, 17, ILI9341_BLACK);
+    tft.drawBitmap(212, 93, up, 17, 17, ILI9341_RED);
+    tft.drawBitmap(212, 120, down, 17, 17, ILI9341_BLACK);
     tft.drawBitmap(155, 5, warning, 7, 16, ILI9341_ORANGE);
   } else if (caltempC < min1) {
-    tft.drawBitmap(200, 120, down, 17, 17, ILI9341_RED);
-    tft.drawBitmap(200, 93, up, 17, 17, ILI9341_BLACK);
+    tft.drawBitmap(212, 120, down, 17, 17, ILI9341_RED);
+    tft.drawBitmap(212, 93, up, 17, 17, ILI9341_BLACK);
     tft.drawBitmap(155, 5, warning, 7, 16, ILI9341_ORANGE);
   } else {
     tft.drawBitmap(155, 5, warning, 7, 16, ILI9341_BLACK);
-    tft.drawBitmap(200, 120, down, 17, 17, ILI9341_BLACK);
-    tft.drawBitmap(200, 93, up, 17, 17, ILI9341_BLACK);
+    tft.drawBitmap(212, 120, down, 17, 17, ILI9341_BLACK);
+    tft.drawBitmap(212, 93, up, 17, 17, ILI9341_BLACK);
   }
   calhumidity = (humidity + h) * offsite2;
   if (calhumidity > max2) {
-    tft.drawBitmap(200, 195, up, 17, 17, ILI9341_RED);
-    tft.drawBitmap(200, 222, down, 17, 17, ILI9341_BLACK);
+    tft.drawBitmap(212, 195, up, 17, 17, ILI9341_RED);
+    tft.drawBitmap(212, 222, down, 17, 17, ILI9341_BLACK);
     tft.drawBitmap(155, 5, warning, 7, 16, ILI9341_ORANGE);
   } else if (calhumidity < min2) {
-    tft.drawBitmap(200, 222, down, 17, 17, ILI9341_RED);
-    tft.drawBitmap(200, 195, up, 17, 17, ILI9341_BLACK);
+    tft.drawBitmap(212, 222, down, 17, 17, ILI9341_RED);
+    tft.drawBitmap(212, 195, up, 17, 17, ILI9341_BLACK);
     tft.drawBitmap(155, 5, warning, 7, 16, ILI9341_ORANGE);
   } else {
     tft.drawBitmap(155, 5, warning, 7, 16, ILI9341_BLACK);
-    tft.drawBitmap(200, 222, down, 17, 17, ILI9341_BLACK);
-    tft.drawBitmap(200, 195, up, 17, 17, ILI9341_BLACK);
+    tft.drawBitmap(212, 222, down, 17, 17, ILI9341_BLACK);
+    tft.drawBitmap(212, 195, up, 17, 17, ILI9341_BLACK);
   }
   currentValue = 0;
   for (int i = 0; i < 10; i++) {
     currentValue += analogRead(bat);
-    delay(100);
+    delay(10);
   }
   volt = (currentValue / 10);
   Serial.print("volt=");
@@ -372,7 +376,6 @@ void readSensor() {
   }
 }
 void Create_Data() {
-
   if (flash.begin()) {
     Serial.println(F("Device finded and supported!"));
   } else {
@@ -419,7 +422,7 @@ void savedata() {
   }
 }
 
-void sendTofirebase(int caltempC, int calhumidity, int tempC, int humidity, String link) {
+void sendTofirebase(float caltempC, float calhumidity, float tempC, float humidity, String link) {
   WiFiClient client;
   HTTPClient http;
   String load = "{}";
@@ -471,27 +474,29 @@ void sendTofirebase(int caltempC, int calhumidity, int tempC, int humidity, Stri
   }
 }
 
-void testText(int caltempC, int calhumidity) {
-
+void testText(float caltempC, float calhumidity, float caltempcclear) {
   tft.setCursor(10, 300);
   tft.setTextColor(ILI9341_BLACK, ILI9341_WHITE);
-  tft.setTextSize(1.5);
+  tft.setTextSize(1);
   tft.println(name);
 
-  // tft.setCursor(48, 93);
-  // tft.setTextSize(6);
-  // tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  // tft.print(String(caltempC, 1));
-  draw7Number(caltempC, 85, 75, 4, ILI9341_BLACK, ILI9341_WHITE, 2);  // (kata,X,Y,ukuran,warna,background,side)
+  tft.setFont(&SevenSegment50pt7b);
+  tft.setCursor(43, 148);
+  tft.setTextSize(1);
+  Data1.setTextColor(ILI9341_BLACK, ILI9341_WHITE);
+  Data1.print(caltempC, 1);
+
+  //draw7Number(caltempC, 85, 75, 4, ILI9341_BLACK, ILI9341_WHITE, 2);  // (kata,X,Y,ukuran,warna,background,side)
   // char onesDigit = '0' + (caltempC % 10);
   // draw7Number(onesDigit, 150, 100, 1, ILI9341_WHITE, ILI9341_BLACK, 1);
-  tft.drawBitmap(45, 85, suhu, 32, 52, ILI9341_RED);
-  // tft.setCursor(85, 185);
-  // tft.setTextSize(6);
-  // tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  // tft.print(String(calhumidity, 0));
-  draw7Number(calhumidity, 85, 180, 4, ILI9341_BLACK, ILI9341_WHITE, 2);  // (kata,X,Y,ukuran,warna,background,side)
-  tft.drawBitmap(42, 195, humi, 38, 52, ILI9341_BLUE);
+  tft.drawBitmap(13, 85, suhu, 32, 52, ILI9341_RED);
+  tft.setCursor(75, 250);
+  tft.setTextSize(1);
+  Data2.setTextColor(ILI9341_BLACK, ILI9341_WHITE);
+  Data2.print(calhumidity, 0);
+  //draw7Number(calhumidity, 85, 180, 4, ILI9341_BLACK, ILI9341_WHITE, 2);  // (kata,X,Y,ukuran,warna,background,side)
+  tft.drawBitmap(10, 185, humi, 38, 52, ILI9341_BLUE);
+  tft.setFont();
 }
 
 void getTimeStamp() {
@@ -693,6 +698,89 @@ void doWiFiManager() {
     portalRunning = true;
     startTime = millis();
   }
+}" HTTP/1.1");
+    client.println("Host: diawan.io");
+    client.println("User-Agent: Arduino/1.0");
+    client.println("Connection: close");
+    client.println("Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
+
+    int length = data.length();
+
+    client.print("Content-Length: ");
+    client.println((dataFile.size() - lasttime_string.length() - 1 - 2) + length);
+    Serial.print("length: ");
+    Serial.println(String(dataFile.size() - lasttime_string.length() - 1 + length));
+    client.println();
+    client.print(data);
+    while (dataFile.available()) {
+
+      if (dataFile.position() < dataFile.size() && (dataFile.position() > (lasttime_string.length() - 1))) {
+        if (dataFile.position() < dataFile.size() - 2) {
+          c = dataFile.read();
+
+          Serial.print("c=");
+          Serial.println(c);
+          client.print(c);
+          //data=data+c;
+        } else {
+          c = dataFile.read();
+          if (c != ' ') {
+            if (c != '#') {
+              Serial.print("c=");
+              Serial.print(c);
+              client.print(c);
+              //data=data+c;
+            }
+          }
+        }
+      }
+      if (dataFile.position() == dataFile.size() - 1 && (dataFile.position() > (lasttime_string.length() - 1))) {
+        client.println();
+      }
+    }
+    Serial.print(data);
+    Serial.println();
+    String req = client.readStringUntil('\r');
+    Serial.println(req);
+    client.flush();
+    Serial.println("Client disonnected");
+    dataFile.close();
+
+
+  } else {
+    Serial.println("Connection failed");
+  }
+  Serial.println(F("DONE Reading"));
+}
+void doWiFiManager() {
+  // is auto timeout portal running
+  if (portalRunning) {
+    wifiManager.process();  // do processing
+
+    // check for timeout
+    if ((millis() - startTime) > (timeout * 1000)) {
+      Serial.println("portaltimeout");
+      portalRunning = false;
+      if (startAP) {
+        wifiManager.stopConfigPortal();
+      } else {
+        wifiManager.stopWebPortal();
+      }
+    }
+  }
+  // is configuration portal requested?
+  if (!portalRunning) {
+    if (startAP) {
+      Serial.println("Button Pressed, Starting Config Portal");
+      wifiManager.setConfigPortalBlocking(false);
+      wifiManager.startConfigPortal(node_ID);
+    } else {
+      Serial.println("Button Pressed, Starting Web Portal");
+      wifiManager.startWebPortal();
+    }
+    portalRunning = true;
+    startTime = millis();
+  }
 }
 
 void draw7Number(int n, unsigned int xLoc, unsigned int yLoc, char cS, unsigned int fC, unsigned int bC, char nD) {
@@ -723,60 +811,4 @@ void draw7Number(int n, unsigned int xLoc, unsigned int yLoc, char cS, unsigned 
     --cnt;
 
     if (num > 9) i = num % 10;        //get the last digit
-    else if (!cnt && n < 0) i = 11;   //show minus sign if 1st position and negative number
-    else if (nD < 0 && !num) i = 10;  //show blanks if remaining number is zero
-    else i = num;
-
-    num = num / 10;  // trim this digit from the number
-
-    for (j = 0; j < 7; ++j) {  // draw all seven segments
-
-      if (nums[i] & (1 << j)) col = fC;  // if segment is On use foreground color
-      else col = bC;                     // else use background color
-
-      if (seg[j][2]) {
-
-        w = S2;                     // Starting width of segment (side)
-        t = seg[j][1] + S3;         // maximum thickness of segment
-        h = seg[j][1] + cS;         // half way point thickness of segment
-        a = xLoc + seg[j][0] + cS;  // starting x location
-        b = seg[j][1];              // starting y location
-
-        while (b < h) {                     // until x location = half way
-          tft.drawFastHLine(a, b, w, col);  //Draw a horizontal segment top
-          a--;                              // move the x position by -1
-          b++;                              // move the y position by 1
-          w += 2;                           // make the line wider by 2
-        }
-
-      } else {
-
-        w = S4;                     // Starting height of segment (side)
-        t = xLoc + seg[j][0] + S3;  // maximum thickness of segment
-        h = xLoc + seg[j][0] + cS;  // half way point thickness of segment
-        a = seg[j][1] + cS;         // starting y location
-        b = xLoc + seg[j][0];       // starting x location
-
-        while (b < h) {                     // until x location = half way
-          tft.drawFastVLine(b, a, w, col);  // Draw a vertical line right side
-          a--;                              //  move the y position by -1
-          b++;                              //  move teh x position by 1
-          w += 2;                           //  make the line wider by 2
-        }
-      }
-
-      while (b < t) {  //finish drawing horizontal bottom or vertical left side of segment
-        if (seg[j][2]) {
-          tft.drawFastHLine(a, b, w, col);  // Draw Horizonal line bottom
-        } else {
-          tft.drawFastVLine(b, a, w, col);  // Draw Vertical line left side
-        }
-        b++;     // keep moving the x or y draw position until t
-        a++;     // move the length or height starting position back the other way.
-        w -= 2;  // move the length or height back the other way
-      }
-    }
-
-    xLoc -= d;  // move to next digit position
-  }
-}
+    else if (!cnt && n < 0) i = 11;   //show
