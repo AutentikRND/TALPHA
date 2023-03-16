@@ -1,5 +1,5 @@
 /*
-   firmware version 2.0.3
+   firmware version 2.0.0
    developed babynoy
 */
 //ALL LIBRARY
@@ -54,9 +54,9 @@ WiFiManager wifiManager;
 //AnalogSmooth as = AnalogSmooth();
 
 //User ID
-String userId = "c8879e6e-db31-44e4-905e-ee87f238076a";
+String userId;
 //ID Device
-String idDevice = "c33fdec6-2bdb-4d21-9a3e-7c37c33cc51a";
+String idDevice;
 //Email Account
 String email = "talpha.autentik@gmail.com";
 //Email Password
@@ -146,7 +146,8 @@ int clientCount = 0;
 int progress = 0;
 int zenklas = 0;
 int zenklas2 = 0;
-char node_ID[] = "RND";
+String node_ID_string;
+char node_ID[15];
 
 void setup() {
   Serial.begin(115200);
@@ -168,6 +169,19 @@ void setup() {
   tft.setTextSize(1);
   tft.println("Open WiFi Portal for 5 Minutes");
   tft.println(" ");
+  if (!fatfs.exists("node_ID.txt")) {
+    Serial.println("ERROR: The required file does not exist.");
+    return;
+  }
+  File32 dataFile = fatfs.open("node_ID.txt");  // FILE_READ is default so not realy needed but if you like to use this technique for e.g. write you need FILE_WRITE
+  if (dataFile) {
+    node_ID_string = dataFile.read();
+    // int str_len = node_ID_string.length() + 1;
+    // char node_ID[str_len];
+    node_ID_string.toCharArray(node_ID, 15);
+    dataFile.close();
+    Serial.println(node_ID);
+  }
 
   if (wifiManager.autoConnect(node_ID)) {
     tft.setTextColor(ILI9341_GREEN);
@@ -213,6 +227,26 @@ void setup() {
   tft.setTextSize(1);
   tft.println("Uploading previous file...");
   tft.println(" ");
+  if (!fatfs.exists("userId.txt")) {
+    Serial.println("ERROR: The required file does not exist.");
+    return;
+  }
+  File32 dataFile1 = fatfs.open("userId.txt");  // FILE_READ is default so not realy needed but if you like to use this technique for e.g. write you need FILE_WRITE
+  if (dataFile1) {
+    userId = dataFile1.read();
+    dataFile1.close();
+    Serial.println(userId);
+  }
+  if (!fatfs.exists("userId.txt")) {
+    Serial.println("ERROR: The required file does not exist.");
+    return;
+  }
+  File32 dataFile2 = fatfs.open("idDevice.txt");  // FILE_READ is default so not realy needed but if you like to use this technique for e.g. write you need FILE_WRITE
+  if (dataFile2) {
+    idDevice = dataFile2.read();
+    dataFile2.close();
+    Serial.println(idDevice);
+  }
   sendfile();
   if (!fatfs.remove("datalog.txt")) {
     Serial.println("Error, couldn't delete datalog.txt file!");
@@ -430,7 +464,7 @@ void sendTofirebase(float caltempC, float calhumidity, float tempC, float humidi
   getTimeStamp();
   String jsonStr = "";
   http.addHeader("Content-Type", "application/json");
-  int httpResponseCode = http.POST("{\"userId\":\"" + userId + "\",\"idDevice\":\"" + idDevice + "\",\"value\":{\"data1\":" + caltempC + ",\"data2\":" + calhumidity + ",\"wifi\":" + qualwifi + "}}");
+  int httpResponseCode = http.POST("{\"email\":\"" + email + "\",\"password\":\"" + pass + "\", \"userId\":\"" + userId + "\",\"idDevice\":\"" + idDevice + "\",\"value\":{\"data1\":" + caltempC + ",\"data2\":" + calhumidity + ",\"wifi\":" + qualwifi + "}}");
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
 
@@ -606,9 +640,7 @@ void postFileContent(const char* path) {
         }
       }
     }
-
     lasttime_string.replace("+", "#");
-
     Serial.print("lasttime=");
     Serial.println(lasttime_string);
     String data = "&userId=" + String(userId) + "&idDevice=" + String(idDevice) + "&lasttimestamp=" + String(lasttime_string) + "&data=";
@@ -698,117 +730,4 @@ void doWiFiManager() {
     portalRunning = true;
     startTime = millis();
   }
-}" HTTP/1.1");
-    client.println("Host: diawan.io");
-    client.println("User-Agent: Arduino/1.0");
-    client.println("Connection: close");
-    client.println("Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
-
-    int length = data.length();
-
-    client.print("Content-Length: ");
-    client.println((dataFile.size() - lasttime_string.length() - 1 - 2) + length);
-    Serial.print("length: ");
-    Serial.println(String(dataFile.size() - lasttime_string.length() - 1 + length));
-    client.println();
-    client.print(data);
-    while (dataFile.available()) {
-
-      if (dataFile.position() < dataFile.size() && (dataFile.position() > (lasttime_string.length() - 1))) {
-        if (dataFile.position() < dataFile.size() - 2) {
-          c = dataFile.read();
-
-          Serial.print("c=");
-          Serial.println(c);
-          client.print(c);
-          //data=data+c;
-        } else {
-          c = dataFile.read();
-          if (c != ' ') {
-            if (c != '#') {
-              Serial.print("c=");
-              Serial.print(c);
-              client.print(c);
-              //data=data+c;
-            }
-          }
-        }
-      }
-      if (dataFile.position() == dataFile.size() - 1 && (dataFile.position() > (lasttime_string.length() - 1))) {
-        client.println();
-      }
-    }
-    Serial.print(data);
-    Serial.println();
-    String req = client.readStringUntil('\r');
-    Serial.println(req);
-    client.flush();
-    Serial.println("Client disonnected");
-    dataFile.close();
-
-
-  } else {
-    Serial.println("Connection failed");
-  }
-  Serial.println(F("DONE Reading"));
 }
-void doWiFiManager() {
-  // is auto timeout portal running
-  if (portalRunning) {
-    wifiManager.process();  // do processing
-
-    // check for timeout
-    if ((millis() - startTime) > (timeout * 1000)) {
-      Serial.println("portaltimeout");
-      portalRunning = false;
-      if (startAP) {
-        wifiManager.stopConfigPortal();
-      } else {
-        wifiManager.stopWebPortal();
-      }
-    }
-  }
-  // is configuration portal requested?
-  if (!portalRunning) {
-    if (startAP) {
-      Serial.println("Button Pressed, Starting Config Portal");
-      wifiManager.setConfigPortalBlocking(false);
-      wifiManager.startConfigPortal(node_ID);
-    } else {
-      Serial.println("Button Pressed, Starting Web Portal");
-      wifiManager.startWebPortal();
-    }
-    portalRunning = true;
-    startTime = millis();
-  }
-}
-
-void draw7Number(int n, unsigned int xLoc, unsigned int yLoc, char cS, unsigned int fC, unsigned int bC, char nD) {
-  unsigned int num = abs(n), i, s, t, w, col, h, a, b, si = 0, j = 1, d = 0;
-  unsigned int S2 = 5 * cS;                                                                                                                                     // width of horizontal segments   5 times the cS
-  unsigned int S3 = 2 * cS;                                                                                                                                     // thickness of a segment 2 times the cs
-  unsigned int S4 = 7 * cS;                                                                                                                                     // height of vertical segments 7 times the cS
-  unsigned int x1 = cS + 1;                                                                                                                                     // starting x location of horizontal segments
-  unsigned int x2 = S3 + S2 + 1;                                                                                                                                // starting x location of right side segments
-  unsigned int y1 = yLoc + x1;                                                                                                                                  // starting y location of top side segments
-  unsigned int y3 = yLoc + S3 + S4 + 1;                                                                                                                         // starting y location of bottom side segments
-  unsigned int seg[7][3] = { { x1, yLoc, 1 }, { x2, y1, 0 }, { x2, y3 + x1, 0 }, { x1, (2 * y3) - yLoc, 1 }, { 0, y3 + x1, 0 }, { 0, y1, 0 }, { x1, y3, 1 } };  // actual x,y locations of all 7 segments with direction
-  unsigned char nums[12] = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x67, 0x00, 0x40 };                                                          // segment defintions for all 10 numbers plus blank and minus sign
-  unsigned char c, cnt;
-
-  c = abs(cS);  // get character size between 1 and 10 ignoring sign
-  if (c > 10) c = 10;
-  if (c < 1) c = 1;
-
-  cnt = abs(nD);  // get number of digits between 1 and 10 ignoring sign
-  if (cnt > 10) cnt = 10;
-  if (cnt < 1) cnt = 1;
-
-  xLoc += (cnt - 1) * (d = S2 + (3 * S3) + 2);  // set starting x at last digit location
-
-  while (cnt > 0) {  // for cnt number of places
-
-    --cnt;
-
-    if (num > 9) i = num % 10;        //get the last digit
-    else if (!cnt && n < 0) i = 11;   //show
