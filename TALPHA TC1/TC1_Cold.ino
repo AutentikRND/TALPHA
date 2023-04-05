@@ -71,6 +71,8 @@ void setup() {
   wifiManager.autoConnect(node_ID);
   if (WiFi.status() == WL_CONNECTED) {
     geturl();
+    readSensor();
+    sendTofirebase(caltemperatureC, temperatureC, persen);
     long rssi = WiFi.RSSI();
     //Serial.print("RSSI: ");
     //Serial.println(rssi);
@@ -80,15 +82,12 @@ void setup() {
     digitalWrite(power, HIGH);                               //HIGH ketika kalibrasi
     ESP.deepSleep(600e6, WAKE_RFCAL);                       //matikan ketika kalibrasi
   }
-  //else {
-    //ESP.deepSleep(600e6, WAKE_RFCAL);                       //matikan ketika kalibrasi
-  //}
+  else {
+    ESP.deepSleep(600e6, WAKE_RFCAL);                       //matikan ketika kalibrasi
+  }
 }
 
 void loop() {
-  readSensor();
-  delay(10);
-  sendTofirebase(caltemperatureC, temperatureC, persen);
 }
 
 void readSensor() {
