@@ -12,26 +12,31 @@
 #include <WiFiManager.h>
 #include <SPI.h>
 #include <Adafruit_MAX31865.h>
+#include <pt100rtd.h>
 #include <ArduinoJson.h>
 //RANDOM............................................................................................................
 // The value of the Rref resistor. Use 430.0 for PT100 and 4300.0 for PT1000
 #define RREF 430.0
 // The 'nominal' 0-degrees-C resistance of the sensor
 // 100.0 for PT100, 1000.0 for PT1000
-#define RNOMINAL 100.0
+//#define RNOMINAL 100.0
+// Like, duh.
+#define C2F(c) ((9 * c / 5) + 32)
+// init the Pt100 table lookup module
+pt100rtd PT100 = pt100rtd();
 // Use software SPI: CS, SDI, SDO, CLK
 Adafruit_MAX31865 thermo = Adafruit_MAX31865(4, 13, 12, 14);
-            //User ID
-            String userId = "c8879e6e-db31-44e4-905e-ee87f238076a";
-            //ID Device
-            String idDevice = "fb734f8a-f8bb-42de-9411-3f3440f868e6";
+//User ID
+String userId = "c8879e6e-db31-44e4-905e-ee87f238076a";
+//ID Device
+String idDevice = "fb734f8a-f8bb-42de-9411-3f3440f868e6";
 
 
-            //Email Account
-            String email = "talpha.autentik@gmail.com";
-            //Email Password
-            String pass = "5k7ZHf";
-            
+//Email Account
+String email = "talpha.autentik@gmail.com";
+//Email Password
+String pass = "5k7ZHf";
+
 String serverName = "http://diawan.io/api/get_url";
 WiFiManager wifiManager;
 //VAR
@@ -67,17 +72,16 @@ void setup() {
   wifiManager.setConfigPortalTimeout(300);
   wifiManager.autoConnect(node_ID);
   if (WiFi.status() == WL_CONNECTED) {
-  geturl();
-  long rssi = WiFi.RSSI();
-  //Serial.print("RSSI: ");
-  //Serial.println(rssi);
-  qualwifi = 2 * (rssi + 100);
-  //Serial.println(qualwifi);
-  //sendTofirebase(caltemperatureC, temperatureC, persen);
-  //ESP.deepSleep(600e6, WAKE_RFCAL);
-  } 
-  else {
-  //ESP.deepSleep(600e6, WAKE_RFCAL);
+    geturl();
+    long rssi = WiFi.RSSI();
+    //Serial.print("RSSI: ");
+    //Serial.println(rssi);
+    qualwifi = 2 * (rssi + 100);
+    //Serial.println(qualwifi);
+    //sendTofirebase(caltemperatureC, temperatureC, persen);
+    //ESP.deepSleep(600e6, WAKE_RFCAL);
+  } else {
+    //ESP.deepSleep(600e6, WAKE_RFCAL);
   }
 }
 
@@ -88,43 +92,32 @@ void loop() {
 }
 
 void readSensor() {
-  uint16_t rtd = thermo.readRTD();
+  uint16_t rtd, ohmsx100;
+  uint32_t dummy;
+  float ohms, Tlut;
+  float Tcvd, Tcube, Tpoly, Trpoly;
+  rtd = thermo.readRTD();
   Serial.print("RTD value: ");
   Serial.println(rtd);
-  float ratio = rtd;
-  ratio /= 32768;
-  Serial.print("Ratio = ");
-  Serial.println(ratio, 8);
-  Serial.print("Resistance = ");
-  Serial.println(RREF * ratio, 8);
-  Serial.print("Temperature = ");
-  Serial.println(thermo.temperature(RNOMINAL, RREF));
-  temperatureC = thermo.temperature(RNOMINAL, RREF);
-  // Check and print any faults
-  uint8_t fault = thermo.readFault();
-  if (fault) {
-    Serial.print("Fault 0x");
-    Serial.println(fault, HEX);
-    if (fault & MAX31865_FAULT_HIGHTHRESH) {
-      Serial.println("RTD High Threshold");
-    }
-    if (fault & MAX31865_FAULT_LOWTHRESH) {
-      Serial.println("RTD Low Threshold");
-    }
-    if (fault & MAX31865_FAULT_REFINLOW) {
-      Serial.println("REFIN- > 0.85 x Bias");
-    }
-    if (fault & MAX31865_FAULT_REFINHIGH) {
-      Serial.println("REFIN- < 0.85 x Bias - FORCE- open");
-    }
-    if (fault & MAX31865_FAULT_RTDINLOW) {
-      Serial.println("RTDIN- < 0.85 x Bias - FORCE- open");
-    }
-    if (fault & MAX31865_FAULT_OVUV) {
-      Serial.println("Under/Over voltage");
-    }
-    thermo.clearFault();
-  }
+  // Use uint16_t (ohms * 100) since it matches data type in lookup table.
+  dummy = ((uint32_t)(rtd << 1)) * 100 * ((uint32_t)floor(RREF));
+  dummy >>= 16;
+  ohmsx100 = (uint16_t)(dummy & 0xFFFF);
+
+  // or use exact ohms floating point value.
+  ohms = (float)(ohmsx100 / 100) + ((float)(ohmsx100 % 100) / 100.0);
+
+  Serial.print("rtd: 0x");
+  Serial.print(rtd, HEX);
+  Serial.print(", ohms: ");
+  Serial.println(ohms, 2);
+
+  temperatureC = PT100.celsius(ohmsx100);                   // NoobNote: LUT== LookUp Table
+  Tcvd = PT100.celsius_cvd(ohms);                   // Callendar-Van Dusen calc
+  Tcube = PT100.celsius_cubic(ohms);                // Cubic eqn calc
+  Tpoly = PT100.celsius_polynomial(ohms);           // 5th order polynomial
+  Trpoly = PT100.celsius_rationalpolynomial(ohms);  // ugly rational polynomial quotient
+
   t = a + b * temperatureC + c * (pow(temperatureC, 2));  //regresi temp
   caltemperatureC = (temperatureC * offsite1) + t;
   val = analogRead(analogInput);  //reads the analog input
@@ -143,9 +136,9 @@ void readSensor() {
   // Serial.print("Voltage :");
   // Serial.println(currentValue);
   Serial.print(caltemperatureC);
+  checkFault() ;
   Serial.println("ºC");
   Serial.println();
-  delay(1000);
 }
 
 void sendTofirebase(float caltemperatureC, float temperatureC) {
@@ -184,6 +177,35 @@ void sendTofirebase(float caltemperatureC, float temperatureC) {
     http.end();
   }
 }
+
+void checkFault(void) {
+  // Check and print any faults
+  uint8_t fault = thermo.readFault();
+  if (fault) {
+    Serial.print("Fault 0x");
+    Serial.println(fault, HEX);
+    if (fault & MAX31865_FAULT_HIGHTHRESH) {
+      Serial.println("RTD High Threshold");
+    }
+    if (fault & MAX31865_FAULT_LOWTHRESH) {
+      Serial.println("RTD Low Threshold");
+    }
+    if (fault & MAX31865_FAULT_REFINLOW) {
+      Serial.println("REFIN- > 0.85 x Bias");
+    }
+    if (fault & MAX31865_FAULT_REFINHIGH) {
+      Serial.println("REFIN- < 0.85 x Bias - FORCE- open");
+    }
+    if (fault & MAX31865_FAULT_RTDINLOW) {
+      Serial.println("RTDIN- < 0.85 x Bias - FORCE- open");
+    }
+    if (fault & MAX31865_FAULT_OVUV) {
+      Serial.println("Under/Over voltage");
+    }
+    thermo.clearFault();
+  }
+}
+
 void geturl() {
   WiFiClient client;
   HTTPClient http;
